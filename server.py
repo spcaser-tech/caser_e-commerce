@@ -20,21 +20,13 @@ ROOT = Path(__file__).resolve().parent
 DATABASE = Path(os.environ.get("GAMERS_OASIS_DB", ROOT / "gamers_oasis.sqlite3"))
 PORT = int(os.environ.get("PORT", "8000"))
 SESSION_DAYS = 30
-PRODUCTS = [
-    (1, "Phantom RGB Tower", "Gaming PCs", "RTX 4070 · Ryzen 7 · 32GB DDR5", 189999, "BEST SELLER", "4.9", 214, "https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=800&q=80"),
-    (2, "Void Pro Headset", "Audio", "Spatial audio · featherlight · zero lag", 12999, "NIGHT SHIFT PICK", "4.8", 186, "https://images.unsplash.com/photo-1599669454699-248893623440?auto=format&fit=crop&w=800&q=80"),
-    (3, "Glitch 75 Keyboard", "Peripherals", "Gasket mount · hot-swap · RGB", 14999, "JUST DROPPED", "4.9", 93, "https://images.unsplash.com/photo-1595225476474-87563907a212?auto=format&fit=crop&w=800&q=80"),
-    (4, "Nova Wireless Mouse", "Peripherals", "26K DPI · 59g ultra-light · 2.4GHz", 7999, "", "4.7", 142, "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=800&q=80"),
-    (5, "Lunar 16 Gaming Laptop", "Laptops", "RTX 4060 · 165Hz QHD · 1TB SSD", 149999, "LOW STOCK", "4.8", 78, "https://images.unsplash.com/photo-1593642632823-8f785ba67e45?auto=format&fit=crop&w=800&q=80"),
-    (6, "Pulse XL Mousepad", "Peripherals", "Desk-wide · stitched edges · midnight", 3499, "", "4.6", 207, "https://images.unsplash.com/photo-1613141412501-9012977f1969?auto=format&fit=crop&w=800&q=80"),
-    (7, "Echo Studio Speakers", "Audio", "2.0 surround · USB-C · reactive glow", 8999, "STAFF FAVORITE", "4.8", 64, "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=800&q=80"),
-    (8, "Cosmos 34 Ultrawide", "Peripherals", "165Hz · 1ms · immersive curved QHD", 59999, "", "4.9", 119, "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=800&q=80"),
-]
+PRODUCT_CATALOG = json.loads((ROOT / "products.json").read_text(encoding="utf-8"))["products"]
 STATIC_FILES = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/styles.css": ("styles.css", "text/css; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+    "/products.json": ("products.json", "application/json; charset=utf-8"),
 }
 
 
@@ -98,7 +90,20 @@ def initialize_database() -> None:
             """INSERT OR IGNORE INTO products
                (id, name, category, description, price_cents, badge, rating, review_count, image)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            PRODUCTS,
+            [
+                (
+                    product["id"],
+                    product["name"],
+                    product["category"],
+                    product["description"],
+                    product["price_cents"],
+                    product["badge"],
+                    product["rating"],
+                    product["review_count"],
+                    product["image"],
+                )
+                for product in PRODUCT_CATALOG
+            ],
         )
 
 

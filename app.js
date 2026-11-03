@@ -361,7 +361,13 @@ async function initialize() {
   updateCart();
   await restoreSession();
   try {
-    const { products } = await request("/api/products");
+    let catalog;
+    try {
+      catalog = await request("/api/products");
+    } catch {
+      catalog = await request("/products.json");
+    }
+    const { products } = catalog;
     state.products = products;
     renderProducts();
     updateCart();
