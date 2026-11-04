@@ -603,6 +603,19 @@ document.querySelectorAll("[data-close-checkout]").forEach((button) => button.ad
 document.querySelectorAll("[data-close-profile]").forEach((button) => button.addEventListener("click", () => hideOverlay(elements.profileOverlay)));
 document.querySelectorAll("[data-close-admin]").forEach((button) => button.addEventListener("click", () => hideOverlay(elements.adminOverlay)));
 document.querySelector("#admin-refresh").addEventListener("click", refreshAdminDashboard);
+async function logoutAccount(overlay) {
+  try {
+    await request("/api/auth/logout", { method: "POST", body: "{}" });
+    state.user = null;
+    localStorage.removeItem(STORAGE_KEYS.token);
+    window.clearInterval(state.adminRefreshTimer);
+    hideOverlay(overlay);
+    document.querySelector("#account-label").textContent = "Log in";
+    showToast("You've been logged out.");
+  } catch (issue) {
+    showToast(issue.message);
+  }
+}
 function openAccount() {
   if (state.user) {
     openProfile();
@@ -610,18 +623,8 @@ function openAccount() {
     openAuth("login");
   }
 }
-document.querySelector("#profile-logout").addEventListener("click", async () => {
-  try {
-    await request("/api/auth/logout", { method: "POST", body: "{}" });
-    state.user = null;
-    localStorage.removeItem(STORAGE_KEYS.token);
-    hideOverlay(elements.profileOverlay);
-    document.querySelector("#account-label").textContent = "Log in";
-    showToast("You've been logged out.");
-  } catch (issue) {
-    showToast(issue.message);
-  }
-});
+document.querySelector("#profile-logout").addEventListener("click", () => logoutAccount(elements.profileOverlay));
+document.querySelector("#admin-logout").addEventListener("click", () => logoutAccount(elements.adminOverlay));
 document.querySelector("#auth-form").addEventListener("submit", submitAuth);
 document.querySelector("#auth-password-toggle").addEventListener("click", (event) => {
   const password = document.querySelector("#auth-password");
