@@ -32,6 +32,19 @@ Keep `DATABASE_URL` set whenever the server or `create_admin.py` is run. If it i
 
 Alternatively, after creating the database in pgAdmin, run `.\run_postgres.ps1`. It securely prompts for the PostgreSQL password, migrates the existing SQLite data, and starts the store without saving the password in the project.
 
+### Deploying the API to Vercel
+
+The repository includes [`api/index.py`](./api/index.py) and [`vercel.json`](./vercel.json) so Vercel routes `/api/*` to the Python API. In the Vercel project settings, add these environment variables for **Production** and **Preview**:
+
+```text
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@YOUR_HOST:5432/gamers_oasis
+ADMIN_EMAIL=your-admin-email
+ADMIN_PASSWORD=your-admin-password
+ADMIN_NAME=System Administrator
+```
+
+Use a hosted PostgreSQL provider for a deployed Vercel site. `localhost` points to the Vercel server, not your personal computer, so a local PostgreSQL connection string will not work there.
+
 Create an account or log in before checking out. Cart contents are saved in your browser; customer accounts, sessions, inventory, and completed orders are stored in SQLite. The checkout creates a real order and generates an itemized receipt. Payment processing is not connected; payment methods record the customer's selected settlement method. Order creation uses a SQLite transaction with an immediate lock so inventory, order, payment, and delivery snapshots commit atomically or roll back together.
 
 To bootstrap the system administrator, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` (at least 12 characters) before starting the server:
