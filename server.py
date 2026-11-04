@@ -157,6 +157,8 @@ def initialize_database() -> None:
                 rating TEXT NOT NULL,
                 review_count INTEGER NOT NULL,
                 image TEXT NOT NULL,
+                price_source_url TEXT NOT NULL DEFAULT '',
+                price_checked_at TEXT NOT NULL DEFAULT '',
                 stock INTEGER NOT NULL DEFAULT 50 CHECK (stock >= 0)
             );
             CREATE TABLE IF NOT EXISTS users (
@@ -222,6 +224,18 @@ def initialize_database() -> None:
             """
         )
         if DATABASE_URL:
+            product_columns = {
+                row["column_name"] for row in database.execute(
+                    """SELECT column_name FROM information_schema.columns
+                       WHERE table_name = 'products'"""
+                )
+            }
+        else:
+            product_columns = {row["name"] for row in database.execute("PRAGMA table_info(products)")}
+        for column in ("price_source_url", "price_checked_at"):
+            if column not in product_columns:
+                database.execute(f"ALTER TABLE products ADD COLUMN {column} TEXT NOT NULL DEFAULT ''")
+        if DATABASE_URL:
             columns = {
                 row["column_name"] for row in database.execute(
                     """SELECT column_name FROM information_schema.columns
@@ -250,9 +264,22 @@ def initialize_database() -> None:
                 database.execute(f"ALTER TABLE orders ADD COLUMN {column} {column_type}")
         database.executemany(
             """INSERT INTO products
-               (id, name, category, description, price_cents, badge, rating, review_count, image)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-               ON CONFLICT DO NOTHING""",
+               (id, name, category, description, price_cents, badge, rating, review_count,
+                image, price_source_url, price_checked_at, stock)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(id) DO UPDATE SET
+                   name = excluded.name,
+                   category = excluded.category,
+                   description = excluded.description,
+                   price_cents = excluded.price_cents,
+                   badge = excluded.badge,
+                   rating = excluded.rating,
+                   review_count = excluded.review_count,
+                   image = excluded.image,
+                   price_source_url = excluded.price_source_url,
+                   price_checked_at = excluded.price_checked_at,
+                   stock = CASE WHEN products.name <> excluded.name
+                                THEN excluded.stock ELSE products.stock END""",
             [
                 (
                     product["id"],
@@ -264,6 +291,9 @@ def initialize_database() -> None:
                     product["rating"],
                     product["review_count"],
                     product["image"],
+                    product["price_source_url"],
+                    product["price_checked_at"],
+                    product["stock"],
                 )
                 for product in PRODUCT_CATALOG
             ],
@@ -367,7 +397,8 @@ class StoreHandler(SimpleHTTPRequestHandler):
             with connect() as database:
                 products = [dict(row) for row in database.execute(
                     """SELECT id, name, category, description, price_cents, badge,
-                              rating, review_count, image, stock FROM products
+                              rating, review_count, image, stock, price_source_url,
+                              price_checked_at FROM products
                        WHERE stock > 0 ORDER BY id"""
                 )]
             self.send_json(200, {"products": products})

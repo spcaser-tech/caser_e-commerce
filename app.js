@@ -170,10 +170,10 @@ function renderProducts() {
         <button class="wish-button${state.favorites.has(product.id) ? " saved" : ""}" type="button" data-favorite="${product.id}" aria-label="${state.favorites.has(product.id) ? "Remove from" : "Add to"} favorites" aria-pressed="${state.favorites.has(product.id)}">♥</button>
         <button class="quick-add" type="button" data-add="${product.id}">ADD TO BAG +</button>
       </div>
-      <div class="product-meta"><span class="product-category">${escapeHtml(product.category)}</span><span class="product-rating"><span>★</span> ${product.rating} (${product.review_count})</span></div>
+      <div class="product-meta"><span class="product-category">${escapeHtml(product.category)}</span>${product.review_count > 0 ? `<span class="product-rating"><span>★</span> ${escapeHtml(product.rating)} (${product.review_count})</span>` : ""}</div>
       <h3 class="product-name">${escapeHtml(product.name)}</h3>
       <p class="product-description">${escapeHtml(product.description)}</p>
-      <div class="product-bottom"><span class="product-price">${currency.format(product.price_cents / 100)}</span><span class="price-note">IN STOCK</span></div>
+      <div class="product-bottom"><span class="product-price">${currency.format(product.price_cents / 100)}</span>${product.price_source_url ? `<a class="price-note retail-source" href="${escapeHtml(product.price_source_url)}" target="_blank" rel="noopener noreferrer" aria-label="Retail price checked on ${escapeHtml(product.price_checked_at)}">SOURCE · ${escapeHtml(product.price_checked_at)}</a>` : `<span class="price-note">IN STOCK</span>`}</div>
       <button class="mobile-add" type="button" data-add="${product.id}">ADD TO BAG +</button>
     </article>
   `).join("");
