@@ -714,6 +714,9 @@ class _VercelRequest(StoreHandler):
         return None
 
 
+_database_initialized = False
+
+
 def app(environ, start_response):
     """WSGI adapter for Vercel while retaining the local HTTP server."""
     request_path = environ.get("HTTP_X_VERCEL_PATH", "")
@@ -726,12 +729,17 @@ def app(environ, start_response):
     request = _VercelRequest(environ)
     request.path = request_path or environ.get("PATH_INFO", "/")
     try:
+        global _database_initialized
+        if not _database_initialized:
+            initialize_database()
+            _database_initialized = True
         if environ.get("REQUEST_METHOD", "GET") == "POST":
             request.do_POST()
         else:
             request.do_GET()
     except Exception as error:
-        request.send_json(500, {"error": f"The API could not complete that request: {error}"})
+        print(f"Vercel API initialization/request error: {error}")
+        request.send_json(500, {"error": "The database connection could not be initialized. Check the Vercel DATABASE_URL setting."})
     body = request.wfile.getvalue()
     response_headers = list(request._response_headers)
     if not any(key.lower() == "content-length" for key, _ in response_headers):
