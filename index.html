@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#090a10">
+    <meta name="description" content="Level up your setup with hand-picked gaming gear, next-gen PCs, and peripherals.">
+    <title>The Gamers Oasis — Gear beyond ordinary</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <div class="announcement">
+      <span class="announcement-spark">✳</span> THE NIGHT SHIFT SALE IS LIVE <span class="announcement-divider">/</span> FREE SHIPPING OVER $100
+    </div>
+
+    <header class="site-header">
+      <a class="brand" href="#" aria-label="The Gamers Oasis home">
+        <span class="brand-mark">G<span>✳</span></span>
+        <span>GAMERS <span class="brand-light">OASIS</span></span>
+      </a>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a class="nav-link active" href="#shop">Shop all</a>
+        <a class="nav-link" href="#shop" data-category-link="Gaming PCs">Battlestations</a>
+        <a class="nav-link" href="#shop" data-category-link="Peripherals">Peripherals</a>
+        <a class="nav-link" href="#shop" data-category-link="Audio">Audio</a>
+      </nav>
+      <div class="header-actions">
+        <button class="icon-button search-toggle" type="button" aria-label="Search products" title="Search">⌕</button>
+        <button class="account-button" type="button" data-open-account aria-label="Log in or open user profile"><span class="account-icon">↗</span><span id="account-label">Log in</span></button>
+        <button class="cart-button" type="button" data-open-cart aria-label="Open shopping cart">Bag <span class="cart-count" id="cart-count">0</span></button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <img class="hero-image" src="https://images.unsplash.com/photo-1593305841991-05c297ba4575?auto=format&amp;fit=crop&amp;w=2000&amp;q=85" alt="">
+        <div class="hero-shade"></div>
+        <div class="hero-content">
+          <div class="eyebrow"><span class="live-dot"></span> BUILT FOR GAMERS. BUILT FOR PLAY.</div>
+          <h1 id="hero-title">YOUR GAME.<br>YOUR <span>UNIVERSE.</span></h1>
+          <p>Gear that hits different. Find your edge with our hand-picked collection of next-level gaming essentials.</p>
+          <a class="primary-button hero-button" href="#shop">Find your setup <span aria-hidden="true">↗</span></a>
+          <div class="hero-proof"><span class="proof-stars">★★★★★</span> <strong>4.9/5</strong> from 2,400+ late-night gamers</div>
+        </div>
+        <div class="hero-side-note">EST. AFTER DARK <span>—</span> PLAY DIFFERENT</div>
+        <div class="hero-index"><span>01</span> / 03</div>
+      </section>
+
+      <section class="ticker" aria-label="Store highlights">
+        <div class="ticker-track">
+          <span>LEVEL UP YOUR LOADOUT</span><i>✳</i><span>FREE SHIPPING OVER $100</span><i>✳</i><span>ZERO COMPROMISE. ALL PLAY.</span><i>✳</i><span>LEVEL UP YOUR LOADOUT</span><i>✳</i><span>FREE SHIPPING OVER $100</span><i>✳</i>
+        </div>
+      </section>
+
+      <section class="shop-section" id="shop">
+        <div class="shop-heading">
+          <div>
+            <div class="eyebrow section-eyebrow"><span class="live-dot"></span> THE GOOD STUFF</div>
+            <h2>Find your <span>next level.</span></h2>
+            <p class="section-description">Thoughtfully picked. Battle tested. Ready when you are.</p>
+          </div>
+          <div class="shop-tools">
+            <label class="search-box" id="search-box">
+              <span aria-hidden="true">⌕</span>
+              <input id="product-search" type="search" placeholder="Search gear..." aria-label="Search products">
+              <kbd>/</kbd>
+            </label>
+            <label class="sort-select-wrap">
+              <span class="sr-only">Sort products</span>
+              <select id="sort-products" class="sort-select">
+                <option value="featured">Featured</option>
+                <option value="price-low">Price: low to high</option>
+                <option value="price-high">Price: high to low</option>
+                <option value="name">Name: A to Z</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="category-row" id="category-row" aria-label="Filter by category">
+          <button type="button" class="category-chip active" data-category="All">All gear <span id="all-count">00</span></button>
+          <button type="button" class="category-chip" data-category="Gaming PCs">Gaming PCs</button>
+          <button type="button" class="category-chip" data-category="Laptops">Laptops</button>
+          <button type="button" class="category-chip" data-category="Peripherals">Peripherals</button>
+          <button type="button" class="category-chip" data-category="Audio">Audio</button>
+          <button type="button" class="category-chip" data-category="Controllers">Controllers</button>
+          <button type="button" class="category-chip" data-category="Gaming Chairs">Chairs</button>
+          <button type="button" class="category-chip" data-category="Gaming Desks">Desks</button>
+          <button type="button" class="category-chip" data-category="Streaming">Streaming</button>
+          <button type="button" class="category-chip" data-category="VR">VR</button>
+        </div>
+
+        <div class="product-grid" id="product-grid" aria-live="polite">
+          <div class="loading-state">Getting the good stuff ready<span>...</span></div>
+        </div>
+        <div class="empty-state" id="empty-state" hidden>
+          <span>⌕</span>
+          <h3>No gear found</h3>
+          <p>Try a different search or category.</p>
+          <button class="text-button" type="button" id="clear-filters">Clear filters ↗</button>
+        </div>
+      </section>
+
+      <section class="manifesto">
+        <span class="manifesto-mark">✳</span>
+        <p>GOOD GEAR. <span>BETTER NIGHTS.</span></p>
+        <a href="#shop">Meet your new favorite thing <span>↗</span></a>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <a class="brand footer-brand" href="#"><span class="brand-mark">A<span>✳</span></span><span>AFTER<span class="brand-light">HOURS</span></span></a>
+      <p>For the ones who play after dark.</p>
+      <span class="footer-copyright">© 2026 THE GAMERS OASIS. BUILT FOR THE NIGHT SHIFT.</span>
+    </footer>
+
+    <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+    <div class="overlay" id="cart-overlay" hidden>
+      <button class="overlay-scrim" type="button" data-close-cart aria-label="Close shopping cart"></button>
+      <aside class="cart-drawer" role="dialog" aria-modal="true" aria-labelledby="cart-title">
+        <div class="drawer-header">
+          <div><div class="eyebrow section-eyebrow">YOUR LOADOUT</div><h2 id="cart-title">Shopping bag <span id="drawer-count">(0)</span></h2></div>
+          <button class="close-button" type="button" data-close-cart aria-label="Close cart">×</button>
+        </div>
+        <div class="cart-items" id="cart-items"></div>
+        <div class="cart-empty" id="cart-empty"><span>✳</span><h3>Your bag is on a break.</h3><p>Give it something good to carry.</p><button class="text-button" type="button" data-close-cart>Back to gear ↗</button></div>
+        <div class="cart-footer" id="cart-footer">
+          <div class="shipping-note"><span>✳</span> <span id="shipping-message">You're getting closer to free shipping.</span></div>
+          <div class="subtotal-row"><span>Subtotal</span><strong id="cart-subtotal">$0.00</strong></div>
+          <p class="tax-note">Taxes calculated at checkout. Shipping on us over $100.</p>
+          <div class="checkout-details-note"><strong>Payment & delivery</strong><span>Choose GCash, Maya, cash, or card and enter your delivery address at checkout.</span></div>
+          <button class="primary-button checkout-button" type="button" id="checkout-button">Checkout <span>↗</span></button>
+          <button class="clear-bag-button" type="button" id="clear-bag-button">Clear bag</button>
+          <button class="continue-shopping" type="button" data-close-cart>Keep looking</button>
+        </div>
+      </aside>
+    </div>
+
+    <div class="modal-overlay" id="auth-overlay" hidden>
+      <button class="overlay-scrim" type="button" data-close-auth aria-label="Close sign-in dialog"></button>
+      <section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+        <button class="close-button modal-close" type="button" data-close-auth aria-label="Close dialog">×</button>
+        <div class="auth-mark">G<span>✳</span></div>
+        <div class="eyebrow section-eyebrow" id="auth-eyebrow">YOUR NEXT LEVEL STARTS HERE</div>
+        <h2 id="auth-title">Welcome <span>back.</span></h2>
+        <p class="auth-description" id="auth-description">Log in to your Gamers Oasis account.</p>
+        <form id="auth-form">
+          <label class="form-field" id="name-field" hidden><span>Your name</span><input id="auth-name" name="name" autocomplete="name" placeholder="Player One" minlength="2"></label>
+          <label class="form-field"><span>Email address</span><input id="auth-email" name="email" type="email" autocomplete="email" placeholder="you@somewhere.com" required></label>
+          <div class="form-field">
+            <label class="password-label" id="auth-password-label" for="auth-password">Password</label>
+            <div class="password-input-wrap">
+              <input id="auth-password" name="password" type="password" autocomplete="current-password" placeholder="At least 8 characters" minlength="8" required>
+              <button class="password-toggle" id="auth-password-toggle" type="button" aria-label="Show password" aria-pressed="false">Show</button>
+            </div>
+          </div>
+          <p class="form-error" id="auth-error" role="alert" hidden></p>
+          <button class="primary-button auth-submit" id="auth-submit" type="submit">Log in <span>↗</span></button>
+        </form>
+        <p class="auth-switch"><span id="auth-switch-copy">New around here?</span> <button type="button" id="auth-switch-button">Create an account</button></p>
+      </section>
+    </div>
+
+    <div class="modal-overlay" id="checkout-overlay" hidden>
+      <button class="overlay-scrim" type="button" data-close-checkout aria-label="Close checkout"></button>
+      <section class="auth-modal checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-title">
+        <button class="close-button modal-close" type="button" data-close-checkout aria-label="Close checkout">×</button>
+        <div class="eyebrow section-eyebrow">SECURE CHECKOUT</div>
+        <h2 id="checkout-title">Finish your <span>order.</span></h2>
+        <form id="checkout-form">
+          <label class="form-field"><span>Full name</span><input id="delivery-name" required autocomplete="name"></label>
+          <label class="form-field"><span>Phone</span><input id="delivery-phone" required autocomplete="tel"></label>
+          <label class="form-field"><span>Delivery address</span><input id="delivery-address" required autocomplete="street-address"></label>
+          <div class="form-row"><label class="form-field"><span>City</span><input id="delivery-city" required autocomplete="address-level2"></label><label class="form-field"><span>Postal code</span><input id="delivery-postal-code" required autocomplete="postal-code"></label></div>
+          <fieldset class="payment-methods">
+            <legend>Payment method</legend>
+            <label class="payment-option"><input type="radio" name="payment-method" value="gcash" checked><span>GCash</span></label>
+            <label class="payment-option"><input type="radio" name="payment-method" value="maya"><span>Maya</span></label>
+            <label class="payment-option"><input type="radio" name="payment-method" value="cash"><span>Cash on delivery</span></label>
+            <label class="payment-option"><input type="radio" name="payment-method" value="card"><span>Credit / debit card</span></label>
+          </fieldset>
+          <div id="payment-details" class="payment-details">
+            <label class="form-field" id="payment-account-field"><span id="payment-account-label">GCash mobile number</span><input id="payment-account" inputmode="tel" placeholder="09XXXXXXXXX"></label>
+            <div id="card-fields" hidden>
+              <label class="form-field"><span>Card number</span><input id="card-number" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456"></label>
+              <div class="form-row"><label class="form-field"><span>Expiry</span><input id="card-expiry" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/YY"></label><label class="form-field"><span>CVV</span><input id="card-cvv" inputmode="numeric" autocomplete="cc-csc" placeholder="123"></label></div>
+            </div>
+          </div>
+          <p class="form-hint" id="payment-hint">Enter your GCash number to continue.</p>
+          <div class="coupon-field"><label class="form-field"><span>New member coupon</span><input id="coupon-code" autocomplete="off" placeholder="WELCOME10"></label><button class="secondary-button" id="redeem-coupon" type="button">Redeem coupon</button><small id="coupon-status">Get 10% off your first order.</small></div>
+          <p class="form-error" id="checkout-error" role="alert" hidden></p>
+          <button class="primary-button auth-submit" type="submit">Place order <span>↗</span></button>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-overlay" id="profile-overlay" hidden>
+      <button class="overlay-scrim" type="button" data-close-profile aria-label="Close profile"></button>
+      <section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title">
+        <button class="close-button modal-close" type="button" data-close-profile aria-label="Close profile">×</button>
+        <div class="eyebrow section-eyebrow">PLAYER PROFILE</div>
+        <h2 id="profile-title">Your <span>delivery details.</span></h2>
+        <form id="profile-form">
+          <label class="form-field"><span>Name</span><input id="profile-name" required minlength="2" autocomplete="name"></label>
+          <label class="form-field"><span>Email</span><input id="profile-email" type="email" disabled></label>
+          <div class="eyebrow section-eyebrow profile-section-label">DELIVERY INFORMATION</div>
+          <label class="form-field"><span>Phone</span><input id="profile-phone" autocomplete="tel"></label>
+          <label class="form-field"><span>Address</span><input id="profile-address" autocomplete="street-address"></label>
+          <div class="form-row"><label class="form-field"><span>City</span><input id="profile-city" autocomplete="address-level2"></label><label class="form-field"><span>Postal code</span><input id="profile-postal-code" autocomplete="postal-code"></label></div>
+          <p class="form-error" id="profile-error" role="alert" hidden></p>
+          <button class="primary-button auth-submit" type="submit">Save profile <span>↗</span></button>
+        </form>
+        <div class="profile-order-history">
+          <div class="eyebrow section-eyebrow profile-section-label">ORDER HISTORY</div>
+          <div id="profile-orders" class="profile-orders"><span class="form-hint">Loading your orders...</span></div>
+        </div>
+        <button class="text-button profile-logout" type="button" id="profile-logout">Log out</button>
+      </section>
+    </div>
+
+    <div class="modal-overlay" id="admin-overlay" hidden>
+      <button class="overlay-scrim" type="button" data-close-admin aria-label="Close administrator dashboard"></button>
+      <section class="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-title">
+        <button class="close-button modal-close" type="button" data-close-admin aria-label="Close administrator dashboard">×</button>
+        <div class="eyebrow section-eyebrow">SYSTEM ADMINISTRATOR</div>
+        <h2 id="admin-title">Store <span>monitoring.</span></h2>
+        <div class="admin-toolbar"><span id="admin-updated">Updating...</span><button class="text-button" type="button" id="admin-refresh">Refresh now ↻</button></div>
+        <div class="admin-metrics" id="admin-metrics"></div>
+        <h3 class="admin-section-title">Customers</h3>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Delivery address</th><th>Joined</th></tr></thead><tbody id="admin-customers"></tbody></table></div>
+        <h3 class="admin-section-title">Recent orders</h3>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Delivery</th><th>Payment</th><th>Coupon</th><th>Status</th><th>Total</th><th>Date</th></tr></thead><tbody id="admin-orders"></tbody></table></div>
+        <h3 class="admin-section-title">Low stock</h3>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Product</th><th>Stock</th></tr></thead><tbody id="admin-stock"></tbody></table></div>
+        <p class="form-error" id="admin-error" role="alert" hidden></p>
+      </section>
+    </div>
+
+    <div class="modal-overlay" id="receipt-overlay" hidden>
+      <button class="overlay-scrim" type="button" data-close-receipt aria-label="Close receipt"></button>
+      <section class="receipt-modal" role="dialog" aria-modal="true" aria-labelledby="receipt-title">
+        <button class="close-button modal-close" type="button" data-close-receipt aria-label="Close receipt">×</button>
+        <div class="receipt-success">✓</div>
+        <div class="eyebrow section-eyebrow">ORDER LOCKED IN</div>
+        <h2 id="receipt-title">That's a <span>wrap.</span></h2>
+        <p class="receipt-thanks">Your new gear is getting ready for its close-up.</p>
+        <div class="receipt-number"><span>RECEIPT / ORDER</span><strong id="receipt-order-id">—</strong><span id="receipt-date"></span></div>
+        <div class="receipt-items" id="receipt-items"></div>
+        <div class="receipt-total"><span>Total paid</span><strong id="receipt-total">$0.00</strong></div>
+        <button class="primary-button receipt-done" type="button" data-close-receipt>Back to the shop <span>↗</span></button>
+      </section>
+    </div>
+
+    <noscript>This gaming shop needs JavaScript switched on to load its live catalog and shopping cart.</noscript>
+  </body>
+</html>
