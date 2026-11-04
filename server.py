@@ -297,6 +297,10 @@ def public_user(user: sqlite3.Row) -> dict[str, object]:
 
 
 PAYMENT_METHODS = {"gcash", "maya", "cash", "card"}
+COUPONS = {
+    "WELCOME10": {"discount_percent": 10, "first_order_only": True},
+    "GAMER20": {"discount_percent": 20, "first_order_only": False},
+}
 
 
 class StoreHandler(SimpleHTTPRequestHandler):
@@ -396,20 +400,30 @@ class StoreHandler(SimpleHTTPRequestHandler):
                         (user["id"],),
                     )]
                 self.send_json(200, {"orders": orders})
-        elif route == "/api/coupons/welcome":
+        elif route.startswith("/api/coupons/"):
             user = self.authenticated_user()
             if user is None:
                 self.send_json(401, {"error": "Your session has expired. Please log in again."})
             else:
+                coupon_code = route.removeprefix("/api/coupons/").upper()
+                coupon = COUPONS.get(coupon_code)
+                if coupon is None:
+                    self.send_json(400, {"error": "That coupon code is not valid."})
+                    return
                 with connect() as database:
                     used = database.execute(
-                        "SELECT 1 FROM coupon_redemptions WHERE user_id = ? AND coupon_code = 'WELCOME10'",
-                        (user["id"],),
+                        "SELECT 1 FROM coupon_redemptions WHERE user_id = ? AND coupon_code = ?",
+                        (user["id"], coupon_code),
                     ).fetchone()
+                    has_orders = coupon["first_order_only"] and database.execute(
+                        "SELECT 1 FROM orders WHERE user_id = ? LIMIT 1",
+                        (user["id"],),
+                    ).fetchone() is not None
                 self.send_json(200, {
-                    "available": used is None,
-                    "code": "WELCOME10",
-                    "discount_percent": 10,
+                    "available": used is None and not has_orders,
+                    "code": coupon_code,
+                    "discount_percent": coupon["discount_percent"],
+                    "first_order_only": coupon["first_order_only"],
                 })
         elif route == "/api/admin/summary":
             self.admin_summary()
@@ -582,7 +596,8 @@ class StoreHandler(SimpleHTTPRequestHandler):
         if not isinstance(coupon_code, str):
             raise ValueError("Enter a valid coupon code.")
         coupon_code = coupon_code.strip().upper()
-        if coupon_code and coupon_code != "WELCOME10":
+        coupon = COUPONS.get(coupon_code) if coupon_code else None
+        if coupon_code and coupon is None:
             raise ValueError("That coupon code is not valid.")
         if not isinstance(delivery, dict):
             raise ValueError("Add your delivery information before checking out.")
@@ -650,8 +665,13 @@ class StoreHandler(SimpleHTTPRequestHandler):
                     (user["id"], coupon_code),
                 ).fetchone()
                 if redeemed:
-                    raise ValueError("WELCOME10 can only be used on your first order.")
-                discount_cents = total_cents // 10
+                    raise ValueError(f"{coupon_code} can only be used once per customer.")
+                if coupon["first_order_only"] and database.execute(
+                    "SELECT 1 FROM orders WHERE user_id = ? LIMIT 1",
+                    (user["id"],),
+                ).fetchone():
+                    raise ValueError(f"{coupon_code} is only available on your first order.")
+                discount_cents = total_cents * coupon["discount_percent"] // 100
             total_cents -= discount_cents
             database.execute(
                 """INSERT INTO orders

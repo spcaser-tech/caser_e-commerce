@@ -58,7 +58,7 @@ async function loadWelcomeCoupon() {
   const field = document.querySelector("#coupon-code");
   if (!field || field.value) return;
   try {
-    const coupon = await request("/api/coupons/welcome");
+    const coupon = await request("/api/coupons/WELCOME10");
     if (coupon.available) {
       field.value = coupon.code;
       setCouponStatus(`Applied ${coupon.code}: ${coupon.discount_percent}% off your first order.`, false);
@@ -88,13 +88,14 @@ async function redeemCoupon() {
     return;
   }
   try {
-    const coupon = await request("/api/coupons/welcome");
-    if (code !== coupon.code || !coupon.available) {
+    const coupon = await request(`/api/coupons/${encodeURIComponent(code)}`);
+    if (!coupon.available) {
       setCouponStatus("That coupon is unavailable for this account.", true);
       return;
     }
     field.value = coupon.code;
-    setCouponStatus(`${coupon.code} applied: ${coupon.discount_percent}% off your first order.`, false);
+    const eligibility = coupon.first_order_only ? "your first order" : "once per customer";
+    setCouponStatus(`${coupon.code} applied: ${coupon.discount_percent}% off ${eligibility}.`, false);
     showToast("Coupon ready. Place your order to redeem it.");
   } catch (issue) {
     setCouponStatus(issue.message, true);
