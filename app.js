@@ -137,8 +137,9 @@ async function request(path, options = {}) {
   return payload;
 }
 
-function safeImage(url, alt = "") {
-  return `<img src="${url}" alt="${escapeHtml(alt)}" loading="lazy" onerror="this.style.display='none'">`;
+function safeImage(url, alt = "", className = "") {
+  const classes = className ? ` class="${escapeHtml(className)}"` : "";
+  return `<img src="${url}" alt="${escapeHtml(alt)}"${classes} loading="lazy" onerror="this.style.display='none'">`;
 }
 
 function escapeHtml(value) {
@@ -164,7 +165,7 @@ function renderProducts() {
   elements.products.innerHTML = matches.map((product) => `
     <article class="product-card">
       <div class="product-visual">
-        ${safeImage(product.image, product.name)}
+        ${safeImage(product.image, product.name, "product-visual-image")}
         ${product.badge ? `<span class="product-badge">${escapeHtml(product.badge)}</span>` : ""}
         <button class="wish-button${state.favorites.has(product.id) ? " saved" : ""}" type="button" data-favorite="${product.id}" aria-label="${state.favorites.has(product.id) ? "Remove from" : "Add to"} favorites" aria-pressed="${state.favorites.has(product.id)}">♥</button>
         <button class="quick-add" type="button" data-add="${product.id}">ADD TO BAG +</button>
@@ -201,7 +202,7 @@ function updateCart() {
     : `${currency.format(remaining / 100)} away from free shipping.`;
   elements.cartItems.innerHTML = lines.map(({ product, quantity }) => `
     <article class="cart-row">
-      ${safeImage(product.image, product.name)}
+      ${safeImage(product.image, product.name, "cart-row-image")}
       <div class="cart-row-info">
         <strong>${escapeHtml(product.name)}</strong>
         <span class="cart-row-category">${escapeHtml(product.category)}</span>
