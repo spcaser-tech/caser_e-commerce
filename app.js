@@ -260,6 +260,11 @@ function openAuth(mode) {
   document.querySelector("#auth-switch-button").textContent = register ? "Log in" : "Create an account";
   document.querySelector("#auth-error").hidden = true;
   document.querySelector("#auth-form").reset();
+  document.querySelector("#auth-password").type = "password";
+  const passwordToggle = document.querySelector("#auth-password-toggle");
+  passwordToggle.textContent = "Show";
+  passwordToggle.setAttribute("aria-label", "Show password");
+  passwordToggle.setAttribute("aria-pressed", "false");
   showOverlay(elements.authOverlay);
 }
 
@@ -618,6 +623,14 @@ document.querySelector("#profile-logout").addEventListener("click", async () => 
   }
 });
 document.querySelector("#auth-form").addEventListener("submit", submitAuth);
+document.querySelector("#auth-password-toggle").addEventListener("click", (event) => {
+  const password = document.querySelector("#auth-password");
+  const showPassword = password.type === "password";
+  password.type = showPassword ? "text" : "password";
+  event.currentTarget.textContent = showPassword ? "Hide" : "Show";
+  event.currentTarget.setAttribute("aria-label", `${showPassword ? "Hide" : "Show"} password`);
+  event.currentTarget.setAttribute("aria-pressed", String(showPassword));
+});
 document.querySelector("#auth-switch-button").addEventListener("click", () => {
   openAuth(state.authMode === "login" ? "register" : "login");
 });

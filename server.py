@@ -15,7 +15,7 @@ from email.message import Message
 from datetime import datetime, timedelta, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 try:
     import psycopg
@@ -28,6 +28,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parent
 DATABASE = Path(os.environ.get("GAMERS_OASIS_DB", ROOT / "gamers_oasis.sqlite3"))
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+DATABASE_INITIALIZATION_LOCK_ID = 741928364105
 PORT = int(os.environ.get("PORT", "8000"))
 SESSION_DAYS = 30
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "").strip().lower()
@@ -104,7 +105,18 @@ class PostgresConnection:
         return self
 
     def __exit__(self, *args):
-        return self.connection.__exit__(*args)
+        try:
+            return self.connection.__exit__(*args)
+        finally:
+            self.connection.close()
+
+
+class SQLiteConnection(sqlite3.Connection):
+    def __exit__(self, *args):
+        try:
+            return super().__exit__(*args)
+        finally:
+            self.close()
 
 
 def connect():
@@ -113,7 +125,7 @@ def connect():
             raise RuntimeError("PostgreSQL support requires psycopg. Install it with: python -m pip install psycopg[binary]")
         return PostgresConnection(psycopg.connect(DATABASE_URL, row_factory=tuple_row))
     DATABASE.parent.mkdir(parents=True, exist_ok=True)
-    database = sqlite3.connect(DATABASE, timeout=10)
+    database = sqlite3.connect(DATABASE, timeout=10, factory=SQLiteConnection)
     database.row_factory = sqlite3.Row
     if not DATABASE_URL:
         database.execute("PRAGMA foreign_keys = ON")
@@ -128,6 +140,11 @@ def initialize_database() -> None:
     if bool(ADMIN_EMAIL) != bool(ADMIN_PASSWORD):
         raise ValueError("Set both ADMIN_EMAIL and ADMIN_PASSWORD to bootstrap the administrator account.")
     with connect() as database:
+        if DATABASE_URL:
+            database.execute(
+                "SELECT pg_advisory_xact_lock(?)",
+                (DATABASE_INITIALIZATION_LOCK_ID,),
+            )
         database.executescript(
             """
             CREATE TABLE IF NOT EXISTS products (
@@ -723,11 +740,7 @@ def app(environ, start_response):
     """WSGI adapter for Vercel while retaining the local HTTP server."""
     request_path = environ.get("HTTP_X_VERCEL_PATH", "")
     if not request_path:
-        query = environ.get("QUERY_STRING", "")
-        for item in query.split("&"):
-            if item.startswith("path="):
-                request_path = item[5:]
-                break
+        request_path = parse_qs(environ.get("QUERY_STRING", "")).get("path", [""])[0]
     request = _VercelRequest(environ)
     request.path = request_path or environ.get("PATH_INFO", "/")
     try:
@@ -739,9 +752,15 @@ def app(environ, start_response):
             request.do_POST()
         else:
             request.do_GET()
+    except ValueError as error:
+        print(f"Vercel API configuration error: {error}")
+        request.send_json(400, {"error": str(error)})
+    except DATABASE_ERROR as error:
+        print(f"Vercel API database error: {error}")
+        request.send_json(500, {"error": "The database connection could not be initialized. Check the Vercel DATABASE_URL setting."})
     except Exception as error:
         print(f"Vercel API initialization/request error: {error}")
-        request.send_json(500, {"error": "The database connection could not be initialized. Check the Vercel DATABASE_URL setting."})
+        request.send_json(500, {"error": "The request could not be processed. Please try again."})
     body = request.wfile.getvalue()
     response_headers = list(request._response_headers)
     if not any(key.lower() == "content-length" for key, _ in response_headers):
