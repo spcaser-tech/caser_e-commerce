@@ -1,5 +1,5 @@
 const STORAGE_KEYS = { cart: "gamers-oasis-cart", favorites: "gamers-oasis-favorites", token: "gamers-oasis-session" };
-const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+const currency = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 const elements = {
   products: document.querySelector("#product-grid"),
   search: document.querySelector("#product-search"),
@@ -15,6 +15,9 @@ const elements = {
   drawerCount: document.querySelector("#drawer-count"),
   shipping: document.querySelector("#shipping-message"),
   authOverlay: document.querySelector("#auth-overlay"),
+  checkoutOverlay: document.querySelector("#checkout-overlay"),
+  profileOverlay: document.querySelector("#profile-overlay"),
+  adminOverlay: document.querySelector("#admin-overlay"),
   receiptOverlay: document.querySelector("#receipt-overlay"),
   toast: document.querySelector("#toast-region"),
 };
@@ -26,7 +29,16 @@ const state = {
   user: null,
   authMode: "login",
   searchTimer: null,
+  pendingCheckout: false,
+  adminRefreshTimer: null,
+  orderNotificationTimer: null,
+  knownOrderState: new Map(),
+  lowStockSignature: "",
 };
+
+document.addEventListener("click", (event) => {
+  if (event.target.closest("[data-open-account]")) openAccount();
+});
 
 function readStorage(key, fallback) {
   try {
@@ -35,10 +47,79 @@ function readStorage(key, fallback) {
   } catch {
     return fallback;
   }
+
 }
 
 function saveStorage(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
+}
+
+async function loadWelcomeCoupon() {
+  const field = document.querySelector("#coupon-code");
+  if (!field || field.value) return;
+  try {
+    const coupon = await request("/api/coupons/welcome");
+    if (coupon.available) {
+      field.value = coupon.code;
+      setCouponStatus(`Applied ${coupon.code}: ${coupon.discount_percent}% off your first order.`, false);
+      showToast("Welcome offer applied: 10% off your first order.");
+    } else {
+      setCouponStatus("Your welcome coupon has already been redeemed.", true);
+    }
+  } catch {
+    return;
+  }
+}
+
+function setCouponStatus(message, isError) {
+  const status = document.querySelector("#coupon-status");
+  if (!status) return;
+  status.textContent = message;
+  status.classList.toggle("form-error", isError);
+  status.classList.toggle("form-hint", !isError);
+}
+
+async function redeemCoupon() {
+  const field = document.querySelector("#coupon-code");
+  const code = field.value.trim().toUpperCase();
+  if (!code) {
+    setCouponStatus("Enter a coupon code first.", true);
+    field.focus();
+    return;
+  }
+  try {
+    const coupon = await request("/api/coupons/welcome");
+    if (code !== coupon.code || !coupon.available) {
+      setCouponStatus("That coupon is unavailable for this account.", true);
+      return;
+    }
+    field.value = coupon.code;
+    setCouponStatus(`${coupon.code} applied: ${coupon.discount_percent}% off your first order.`, false);
+    showToast("Coupon ready. Place your order to redeem it.");
+  } catch (issue) {
+    setCouponStatus(issue.message, true);
+  }
+}
+
+async function pollOrderNotifications() {
+  if (!state.user || state.user.role === "admin") return;
+  try {
+    const { orders } = await request("/api/orders");
+    orders.forEach((order) => {
+      const previous = state.knownOrderState.get(order.id);
+      const current = `${order.status}:${order.payment_status || ""}`;
+      if (previous && previous !== current) showToast(`Order ${order.id} updated: ${order.status}.`);
+      state.knownOrderState.set(order.id, current);
+    });
+  } catch {
+    return;
+  }
+}
+
+function startOrderNotifications() {
+  window.clearInterval(state.orderNotificationTimer);
+  pollOrderNotifications();
+  state.orderNotificationTimer = window.setInterval(pollOrderNotifications, 15000);
 }
 
 async function request(path, options = {}) {
@@ -160,7 +241,7 @@ function showOverlay(overlay) {
 
 function hideOverlay(overlay) {
   overlay.hidden = true;
-  if ([elements.cartOverlay, elements.authOverlay, elements.receiptOverlay].every((item) => item.hidden)) {
+  if ([elements.cartOverlay, elements.authOverlay, elements.checkoutOverlay, elements.profileOverlay, elements.adminOverlay, elements.receiptOverlay].every((item) => item.hidden)) {
     document.body.classList.remove("no-scroll");
   }
 }
@@ -201,6 +282,11 @@ async function submitAuth(event) {
     document.querySelector("#account-label").textContent = state.user.name.split(" ")[0];
     hideOverlay(elements.authOverlay);
     showToast(`Welcome ${state.user.name.split(" ")[0]}! You're all set.`);
+    startOrderNotifications();
+    if (state.pendingCheckout) {
+      state.pendingCheckout = false;
+      openCheckout();
+    }
   } catch (issue) {
     error.textContent = issue.message;
     error.hidden = false;
@@ -215,9 +301,161 @@ async function restoreSession() {
     const { user } = await request("/api/me");
     state.user = user;
     document.querySelector("#account-label").textContent = user.name.split(" ")[0];
+    startOrderNotifications();
   } catch (issue) {
     localStorage.removeItem(STORAGE_KEYS.token);
     if (!issue.message.startsWith("Can't reach")) showToast("Your session expired. Log in again to continue.");
+  }
+}
+
+function fillProfile(user) {
+  ["name", "phone", "address", "city", "postal_code"].forEach((field) => {
+    const fieldId = field.replace("_", "-");
+    const profileField = document.querySelector(`#profile-${fieldId}`);
+    const deliveryField = document.querySelector(`#delivery-${fieldId}`);
+    if (profileField) profileField.value = user[field] || "";
+    if (deliveryField) deliveryField.value = user[field] || "";
+  });
+  document.querySelector("#profile-email").value = user.email;
+}
+
+function openProfile() {
+  if (!state.user) {
+    openAuth("login");
+    return;
+  }
+  if (state.user.role === "admin") {
+    openAdminDashboard();
+    return;
+  }
+  fillProfile(state.user);
+  document.querySelector("#profile-error").hidden = true;
+  showOverlay(elements.profileOverlay);
+  loadOrderHistory();
+}
+
+async function loadOrderHistory() {
+  const container = document.querySelector("#profile-orders");
+  try {
+    const { orders } = await request("/api/orders");
+    container.innerHTML = orders.length
+      ? orders.map((order) => `<div class="profile-order"><strong>${escapeHtml(order.id)}</strong><span>${currency.format(order.total_cents / 100)} · ${escapeHtml(order.payment_method)} · ${escapeHtml(order.status)}</span><small>${escapeHtml(new Date(order.created_at).toLocaleDateString())} · ${escapeHtml(order.delivery_city)} ${escapeHtml(order.delivery_postal_code)}</small></div>`).join("")
+      : '<span class="form-hint">No orders yet. Your completed purchases will appear here.</span>';
+  } catch (issue) {
+    container.innerHTML = `<span class="form-error">${escapeHtml(issue.message)}</span>`;
+  }
+}
+
+async function openAdminDashboard() {
+  showOverlay(elements.adminOverlay);
+  await refreshAdminDashboard();
+  window.clearInterval(state.adminRefreshTimer);
+  state.adminRefreshTimer = window.setInterval(() => {
+    if (!elements.adminOverlay.hidden) refreshAdminDashboard();
+  }, 10000);
+}
+
+async function refreshAdminDashboard() {
+  document.querySelector("#admin-error").hidden = true;
+  try {
+    const data = await request("/api/admin/summary");
+    const summary = data.summary;
+    document.querySelector("#admin-metrics").innerHTML = [
+      ["Customers", summary.users],
+      ["Orders", summary.orders],
+      ["Revenue", currency.format(summary.revenue_cents / 100)],
+      ["Low stock", summary.low_stock],
+    ].map(([label, value]) => `<div class="admin-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("");
+    document.querySelector("#admin-customers").innerHTML = data.customers.length
+      ? data.customers.map((customer) => `<tr><td>${escapeHtml(customer.name)}</td><td>${escapeHtml(customer.email)}</td><td>${escapeHtml(customer.phone || "—")}</td><td>${escapeHtml([customer.address, customer.city, customer.postal_code].filter(Boolean).join(", ") || "Not provided")}</td><td>${escapeHtml(new Date(customer.created_at).toLocaleDateString())}</td></tr>`).join("")
+      : '<tr><td colspan="5">No customers yet.</td></tr>';
+    document.querySelector("#admin-orders").innerHTML = data.orders.length
+      ? data.orders.map((order) => `<tr><td>${escapeHtml(order.id)}</td><td>${escapeHtml(order.customer_name)}</td><td>${escapeHtml(order.item_count)}</td><td>${escapeHtml(`${order.delivery_name}, ${order.delivery_address}, ${order.delivery_city} ${order.delivery_postal_code} · ${order.delivery_phone}`)}</td><td>${escapeHtml(`${order.payment_method} ${order.masked_reference || ""}`)}</td><td>${escapeHtml(order.coupon_code || "—")}${order.discount_cents ? ` (-${currency.format(order.discount_cents / 100)})` : ""}</td><td>${escapeHtml(`${order.status} / ${order.payment_status || "pending"}`)}</td><td>${currency.format(order.total_cents / 100)}</td><td>${escapeHtml(new Date(order.created_at).toLocaleDateString())}</td></tr>`).join("")
+      : '<tr><td colspan="9">No orders yet.</td></tr>';
+    document.querySelector("#admin-stock").innerHTML = data.low_stock.length
+      ? data.low_stock.map((item) => `<tr><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.stock)}</td></tr>`).join("")
+      : '<tr><td colspan="2">All products have healthy stock.</td></tr>';
+    const lowStockSignature = data.low_stock.map((item) => `${item.id}:${item.stock}`).join("|");
+    if (data.low_stock.length && lowStockSignature !== state.lowStockSignature) {
+      showToast(`${data.low_stock.length} product${data.low_stock.length === 1 ? "" : "s"} running low on stock.`);
+    }
+    state.lowStockSignature = lowStockSignature;
+    document.querySelector("#admin-updated").textContent = `Live · updated ${new Date().toLocaleTimeString()}`;
+  } catch (issue) {
+    document.querySelector("#admin-error").textContent = issue.message;
+    document.querySelector("#admin-error").hidden = false;
+  }
+}
+
+async function submitProfile(event) {
+  event.preventDefault();
+  const error = document.querySelector("#profile-error");
+  error.hidden = true;
+  try {
+    const result = await request("/api/profile", {
+      method: "POST",
+      body: JSON.stringify({
+        name: document.querySelector("#profile-name").value,
+        phone: document.querySelector("#profile-phone").value,
+        address: document.querySelector("#profile-address").value,
+        city: document.querySelector("#profile-city").value,
+        postal_code: document.querySelector("#profile-postal-code").value,
+      }),
+    });
+    state.user = result.user;
+    document.querySelector("#account-label").textContent = state.user.name.split(" ")[0];
+    fillProfile(state.user);
+    hideOverlay(elements.profileOverlay);
+    showToast("Profile saved. Your delivery details are ready.");
+  } catch (issue) {
+    error.textContent = issue.message;
+    error.hidden = false;
+  }
+}
+
+function openCheckout() {
+  if (!getCartLines().length) {
+    showToast("Add an item to your bag before checking out.");
+    return;
+  }
+  fillProfile(state.user);
+  updatePaymentFields();
+  loadWelcomeCoupon();
+  document.querySelector("#checkout-error").hidden = true;
+  hideOverlay(elements.cartOverlay);
+  showOverlay(elements.checkoutOverlay);
+}
+
+function selectedPaymentMethod() {
+  return document.querySelector('input[name="payment-method"]:checked').value;
+}
+
+function updatePaymentFields() {
+  const method = selectedPaymentMethod();
+  const accountField = document.querySelector("#payment-account-field");
+  const account = document.querySelector("#payment-account");
+  const cardFields = document.querySelector("#card-fields");
+  const hint = document.querySelector("#payment-hint");
+  const label = document.querySelector("#payment-account-label");
+  const requiresAccount = method === "gcash" || method === "maya";
+  accountField.hidden = !requiresAccount;
+  account.required = requiresAccount;
+  cardFields.hidden = method !== "card";
+  document.querySelector("#card-number").required = method === "card";
+  document.querySelector("#card-expiry").required = method === "card";
+  document.querySelector("#card-cvv").required = method === "card";
+  if (method === "maya") {
+    label.textContent = "Maya mobile number";
+    account.placeholder = "09XXXXXXXXX";
+    hint.textContent = "Enter the mobile number linked to your Maya account.";
+  } else if (method === "card") {
+    hint.textContent = "Enter your card details securely. No card data is stored.";
+  } else if (method === "cash") {
+    hint.textContent = "Pay the delivery rider when your order arrives.";
+  } else {
+    label.textContent = "GCash mobile number";
+    account.placeholder = "09XXXXXXXXX";
+    hint.textContent = "Enter the mobile number linked to your GCash account.";
   }
 }
 
@@ -235,26 +473,52 @@ function showReceipt(order) {
 async function checkout() {
   if (!state.user) {
     hideOverlay(elements.cartOverlay);
+    state.pendingCheckout = true;
     openAuth("login");
     showToast("Log in or create an account to finish your order.");
     return;
   }
-  const button = document.querySelector("#checkout-button");
+  openCheckout();
+}
+
+async function submitCheckout(event) {
+  event.preventDefault();
+  const button = event.currentTarget.querySelector("button[type=submit]");
+  const error = document.querySelector("#checkout-error");
   button.disabled = true;
-  button.innerHTML = "Securing your order…";
+  error.hidden = true;
   try {
     const order = await request("/api/orders", {
       method: "POST",
-      body: JSON.stringify({ items: getCartLines().map(({ product, quantity }) => ({ product_id: product.id, quantity })) }),
+      body: JSON.stringify({
+        items: getCartLines().map(({ product, quantity }) => ({ product_id: product.id, quantity })),
+        payment_method: selectedPaymentMethod(),
+        coupon_code: document.querySelector("#coupon-code").value.trim().toUpperCase(),
+        delivery: {
+          name: document.querySelector("#delivery-name").value,
+          phone: document.querySelector("#delivery-phone").value,
+          address: document.querySelector("#delivery-address").value,
+          city: document.querySelector("#delivery-city").value,
+          postal_code: document.querySelector("#delivery-postal-code").value,
+        },
+        payment_details: {
+          account: document.querySelector("#payment-account").value,
+          card_number: document.querySelector("#card-number").value,
+          card_expiry: document.querySelector("#card-expiry").value,
+          card_cvv: document.querySelector("#card-cvv").value,
+        },
+      }),
     });
     state.cart = {};
+    setCouponStatus(`Coupon redeemed${order.coupon_code ? `: ${order.coupon_code}` : ""}.`, false);
     updateCart();
+    hideOverlay(elements.checkoutOverlay);
     showReceipt(order);
   } catch (issue) {
-    showToast(issue.message);
+    error.textContent = issue.message;
+    error.hidden = false;
   } finally {
     button.disabled = false;
-    button.innerHTML = "Checkout <span>↗</span>";
   }
 }
 
@@ -320,22 +584,39 @@ elements.cartItems.addEventListener("click", (event) => {
   }
 });
 document.querySelector("#checkout-button").addEventListener("click", checkout);
-document.querySelectorAll("[data-open-auth]").forEach((button) => button.addEventListener("click", async () => {
+document.querySelector("#clear-bag-button").addEventListener("click", () => {
+  state.cart = {};
+  updateCart();
+  hideOverlay(elements.cartOverlay);
+  showToast("Your bag has been cleared.");
+});
+document.querySelector("#checkout-form").addEventListener("submit", submitCheckout);
+document.querySelector("#redeem-coupon").addEventListener("click", redeemCoupon);
+document.querySelectorAll('input[name="payment-method"]').forEach((input) => input.addEventListener("change", updatePaymentFields));
+document.querySelector("#profile-form").addEventListener("submit", submitProfile);
+document.querySelectorAll("[data-close-checkout]").forEach((button) => button.addEventListener("click", () => hideOverlay(elements.checkoutOverlay)));
+document.querySelectorAll("[data-close-profile]").forEach((button) => button.addEventListener("click", () => hideOverlay(elements.profileOverlay)));
+document.querySelectorAll("[data-close-admin]").forEach((button) => button.addEventListener("click", () => hideOverlay(elements.adminOverlay)));
+document.querySelector("#admin-refresh").addEventListener("click", refreshAdminDashboard);
+function openAccount() {
   if (state.user) {
-    try {
-      await request("/api/auth/logout", { method: "POST", body: "{}" });
-    } catch (issue) {
-      showToast(issue.message);
-      return;
-    }
+    openProfile();
+  } else {
+    openAuth("login");
+  }
+}
+document.querySelector("#profile-logout").addEventListener("click", async () => {
+  try {
+    await request("/api/auth/logout", { method: "POST", body: "{}" });
     state.user = null;
     localStorage.removeItem(STORAGE_KEYS.token);
+    hideOverlay(elements.profileOverlay);
     document.querySelector("#account-label").textContent = "Log in";
     showToast("You've been logged out.");
-    return;
+  } catch (issue) {
+    showToast(issue.message);
   }
-  openAuth(button.dataset.openAuth);
-}));
+});
 document.querySelector("#auth-form").addEventListener("submit", submitAuth);
 document.querySelector("#auth-switch-button").addEventListener("click", () => {
   openAuth(state.authMode === "login" ? "register" : "login");
@@ -348,7 +629,7 @@ document.querySelector(".search-toggle").addEventListener("click", () => {
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
-    [elements.cartOverlay, elements.authOverlay, elements.receiptOverlay].forEach((overlay) => hideOverlay(overlay));
+    [elements.cartOverlay, elements.authOverlay, elements.checkoutOverlay, elements.profileOverlay, elements.adminOverlay, elements.receiptOverlay].forEach((overlay) => hideOverlay(overlay));
   }
   if (event.key === "/" && !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
     event.preventDefault();
