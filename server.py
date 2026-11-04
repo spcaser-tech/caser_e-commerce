@@ -5,11 +5,13 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import io
 import json
 import os
 import re
 import secrets
 import sqlite3
+from email.message import Message
 from datetime import datetime, timedelta, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -682,6 +684,60 @@ class StoreHandler(SimpleHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
         super().end_headers()
+
+
+class _VercelRequest(StoreHandler):
+    def __init__(self, environ):
+        self.headers = Message()
+        for key, value in environ.items():
+            if key.startswith("HTTP_"):
+                self.headers[key[5:].replace("_", "-")] = value
+        self.headers["Content-Length"] = environ.get("CONTENT_LENGTH", "0")
+        self.rfile = environ["wsgi.input"]
+        self.wfile = io.BytesIO()
+        self._status = "500 Internal Server Error"
+        self._response_headers = []
+
+    def send_response(self, code, message=None):
+        self._status = f"{code} {message or ''}".strip()
+
+    def send_header(self, key, value):
+        self._response_headers.append((key, value))
+
+    def end_headers(self):
+        return None
+
+    def send_error(self, code, message=None):
+        self.send_json(code, {"error": message or "Request failed."})
+
+    def log_request(self, *args, **kwargs):
+        return None
+
+
+def app(environ, start_response):
+    """WSGI adapter for Vercel while retaining the local HTTP server."""
+    request_path = environ.get("HTTP_X_VERCEL_PATH", "")
+    if not request_path:
+        query = environ.get("QUERY_STRING", "")
+        for item in query.split("&"):
+            if item.startswith("path="):
+                request_path = item[5:]
+                break
+    request = _VercelRequest(environ)
+    request.path = request_path or environ.get("PATH_INFO", "/")
+    try:
+        if environ.get("REQUEST_METHOD", "GET") == "POST":
+            request.do_POST()
+        else:
+            request.do_GET()
+    except Exception as error:
+        request.send_json(500, {"error": f"The API could not complete that request: {error}"})
+    body = request.wfile.getvalue()
+    response_headers = list(request._response_headers)
+    if not any(key.lower() == "content-length" for key, _ in response_headers):
+        response_headers.append(("Content-Length", str(len(body))))
+    start_response(request._status, response_headers)
+    return [body]
 
 
 if __name__ == "__main__":
