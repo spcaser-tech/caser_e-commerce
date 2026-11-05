@@ -2,6 +2,10 @@
 
 A futuristic gaming gear storefront with a persistent SQLite catalog, account registration and login, editable delivery profiles, GCash, Maya, cash-on-delivery, and credit/debit-card payment choices, Philippine peso pricing, a saved shopping cart, and database-backed orders and receipts.
 
+Product images, names, and cards open an interactive specifications view. Customers can submit store feedback, which is saved in the database, shown on the storefront, and available in the administrator dashboard's Client feedback tab. The About section shares the Gamers Oasis brand story; Instagram and TikTok display `@gamersoasis`, and Facebook displays `Gamers Oasis` as non-clickable social profile labels.
+
+The 76-product catalog uses product photos and listed PHP prices from Datablitz product listings. Each product shows its retailer listing and the date its price was last checked; prices were checked on 2026-11-04 and may change at the retailer. On startup, the catalog refreshes product details and prices in the database while retaining current stock counts and existing order line-item snapshots.
+
 ## Run locally
 
 Requires Python 3.10 or later; the application uses only Python's standard library.

@@ -85,13 +85,14 @@
           <button type="button" class="category-chip active" data-category="All">All gear <span id="all-count">00</span></button>
           <button type="button" class="category-chip" data-category="Gaming PCs">Gaming PCs</button>
           <button type="button" class="category-chip" data-category="Laptops">Laptops</button>
+          <button type="button" class="category-chip" data-category="Monitors">Monitors</button>
           <button type="button" class="category-chip" data-category="Peripherals">Peripherals</button>
           <button type="button" class="category-chip" data-category="Audio">Audio</button>
           <button type="button" class="category-chip" data-category="Controllers">Controllers</button>
-          <button type="button" class="category-chip" data-category="Gaming Chairs">Chairs</button>
-          <button type="button" class="category-chip" data-category="Gaming Desks">Desks</button>
+          <button type="button" class="category-chip" data-category="Components">Components</button>
+          <button type="button" class="category-chip" data-category="VR Accessories">VR Accessories</button>
           <button type="button" class="category-chip" data-category="Streaming">Streaming</button>
-          <button type="button" class="category-chip" data-category="VR">VR</button>
+          <button type="button" class="category-chip" data-category="Gaming Accessories">Gaming Accessories</button>
         </div>
 
         <div class="product-grid" id="product-grid" aria-live="polite">
@@ -111,11 +112,41 @@
         <a href="#shop">Meet your new favorite thing <span>↗</span></a>
       </section>
 
+      <section class="feedback-section" id="feedback" aria-labelledby="feedback-title">
+        <div class="feedback-heading">
+          <div class="eyebrow section-eyebrow"><span class="live-dot"></span> PLAYER FEEDBACK</div>
+          <h2 id="feedback-title">The community <span>speaks.</span></h2>
+          <p>Tell us how we're doing. Your feedback helps us make the shop better for every player.</p>
+        </div>
+        <div class="feedback-content">
+          <div class="feedback-list" id="feedback-list" aria-live="polite">
+            <p class="feedback-empty">Loading player feedback...</p>
+          </div>
+          <form class="feedback-form" id="feedback-form">
+            <h3>Leave feedback</h3>
+            <label class="form-field"><span>Your name</span><input id="feedback-name" name="name" autocomplete="name" minlength="2" maxlength="60" placeholder="Player One" required></label>
+            <label class="form-field"><span>Your rating</span>
+              <select id="feedback-rating" name="rating" required>
+                <option value="5">★★★★★ — Loved it</option>
+                <option value="4">★★★★☆ — Great</option>
+                <option value="3">★★★☆☆ — Good</option>
+                <option value="2">★★☆☆☆ — Could be better</option>
+                <option value="1">★☆☆☆☆ — Needs work</option>
+              </select>
+            </label>
+            <label class="form-field"><span>Your feedback</span><textarea id="feedback-message" name="message" rows="4" minlength="5" maxlength="500" placeholder="Share your experience with us..." required></textarea></label>
+            <p class="feedback-status" id="feedback-status" role="status" aria-live="polite"></p>
+            <button class="primary-button feedback-submit" type="submit">Send feedback <span>↗</span></button>
+          </form>
+        </div>
+      </section>
+
       <section class="about-section" id="about" aria-labelledby="about-title">
         <div class="about-copy">
-          <div class="eyebrow section-eyebrow"><span class="live-dot"></span> WHO WE ARE</div>
+          <div class="eyebrow section-eyebrow"><span class="live-dot"></span> OUR STORY</div>
           <h2 id="about-title">Built for the <span>night shift.</span></h2>
-          <p>Gamers Oasis is for the players who make their setup their own. We bring gaming gear and essentials together so you can spend less time searching and more time playing.</p>
+          <p>The Gamers Oasis story is about helping players build a setup that feels like their own. We bring PCs, peripherals, audio, and gaming essentials together so you can spend less time searching and more time playing.</p>
+          <p>Whether you're choosing your first upgrade or putting together a full battlestation, we're here for the players who keep going after dark. Good gear. Better nights.</p>
         </div>
         <a class="about-link" href="#shop">Explore the gear <span aria-hidden="true">↗</span></a>
       </section>
@@ -128,12 +159,11 @@
       </div>
       <div class="footer-links">
         <a href="#about">About us</a>
-        <div class="footer-socials" role="group" aria-label="Social media, coming soon">
-          <span class="footer-socials-label">Social media</span>
-          <span class="social-chip" aria-disabled="true"><span class="social-mark" aria-hidden="true">IG</span> Instagram</span>
-          <span class="social-chip" aria-disabled="true"><span class="social-mark" aria-hidden="true">f</span> Facebook</span>
-          <span class="social-chip" aria-disabled="true"><span class="social-mark" aria-hidden="true">♪</span> TikTok</span>
-          <span class="social-coming-soon">Coming soon</span>
+        <div class="footer-socials" role="group" aria-label="Social media profiles, not clickable yet">
+          <span class="footer-socials-label">Social channels</span>
+          <span class="social-chip" aria-disabled="true"><span class="social-mark" aria-hidden="true">IG</span> Instagram <strong>@gamersoasis</strong></span>
+          <span class="social-chip" aria-disabled="true"><span class="social-mark" aria-hidden="true">f</span> Facebook <strong>Gamers Oasis</strong></span>
+          <span class="social-chip" aria-disabled="true"><span class="social-mark" aria-hidden="true">♪</span> TikTok <strong>@gamersoasis</strong></span>
         </div>
       </div>
       <span class="footer-copyright">© 2026 THE GAMERS OASIS. BUILT FOR THE NIGHT SHIFT.</span>
@@ -251,13 +281,24 @@
         <div class="eyebrow section-eyebrow">SYSTEM ADMINISTRATOR</div>
         <h2 id="admin-title">Store <span>monitoring.</span></h2>
         <div class="admin-toolbar"><span id="admin-updated">Updating...</span><button class="text-button" type="button" id="admin-refresh">Refresh now ↻</button></div>
-        <div class="admin-metrics" id="admin-metrics"></div>
-        <h3 class="admin-section-title">Customers</h3>
-        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Delivery address</th><th>Joined</th></tr></thead><tbody id="admin-customers"></tbody></table></div>
-        <h3 class="admin-section-title">Recent orders</h3>
-        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Delivery</th><th>Payment</th><th>Coupon</th><th>Status</th><th>Total</th><th>Date</th></tr></thead><tbody id="admin-orders"></tbody></table></div>
-        <h3 class="admin-section-title">Low stock</h3>
-        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Product</th><th>Stock</th></tr></thead><tbody id="admin-stock"></tbody></table></div>
+        <div class="admin-tabs" role="tablist" aria-label="Administrator sections">
+          <button class="admin-tab active" id="admin-overview-tab" type="button" role="tab" aria-selected="true" aria-controls="admin-overview-panel" data-admin-tab="overview">Overview</button>
+          <button class="admin-tab" id="admin-feedback-tab" type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="admin-feedback-panel" data-admin-tab="feedback">Client feedback</button>
+        </div>
+        <div id="admin-overview-panel" role="tabpanel" aria-labelledby="admin-overview-tab" data-admin-panel="overview">
+          <div class="admin-metrics" id="admin-metrics"></div>
+          <h3 class="admin-section-title">Customers</h3>
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Delivery address</th><th>Joined</th></tr></thead><tbody id="admin-customers"></tbody></table></div>
+          <h3 class="admin-section-title">Recent orders</h3>
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Delivery</th><th>Payment</th><th>Coupon</th><th>Status</th><th>Total</th><th>Date</th></tr></thead><tbody id="admin-orders"></tbody></table></div>
+          <h3 class="admin-section-title">Low stock</h3>
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Product</th><th>Stock</th></tr></thead><tbody id="admin-stock"></tbody></table></div>
+        </div>
+        <div id="admin-feedback-panel" role="tabpanel" aria-labelledby="admin-feedback-tab" data-admin-panel="feedback" hidden>
+          <h3 class="admin-section-title">Recent client feedback</h3>
+          <p class="admin-feedback-note" id="admin-feedback-note">The latest feedback submitted by customers.</p>
+          <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Customer</th><th>Rating</th><th>Feedback</th><th>Submitted</th></tr></thead><tbody id="admin-feedback"></tbody></table></div>
+        </div>
         <p class="form-error" id="admin-error" role="alert" hidden></p>
       </section>
     </div>
@@ -274,6 +315,23 @@
         <div class="receipt-items" id="receipt-items"></div>
         <div class="receipt-total"><span>Total paid</span><strong id="receipt-total">$0.00</strong></div>
         <button class="primary-button receipt-done" type="button" data-close-receipt>Back to the shop <span>↗</span></button>
+      </section>
+    </div>
+
+    <div class="modal-overlay" id="product-overlay" hidden>
+      <button class="overlay-scrim" type="button" data-close-product aria-label="Close product details"></button>
+      <section class="product-modal" role="dialog" aria-modal="true" aria-labelledby="product-modal-title">
+        <button class="close-button modal-close" type="button" data-close-product aria-label="Close product details">×</button>
+        <div class="product-modal-image" id="product-modal-image"></div>
+        <div class="product-modal-content">
+          <div class="eyebrow section-eyebrow" id="product-modal-category"></div>
+          <h2 id="product-modal-title"></h2>
+          <p class="product-modal-description" id="product-modal-description"></p>
+          <div class="product-modal-rating" id="product-modal-rating"></div>
+          <h3>Specifications</h3>
+          <ul class="product-spec-list" id="product-spec-list"></ul>
+          <div class="product-modal-bottom"><strong id="product-modal-price"></strong><button class="primary-button" type="button" id="product-modal-add">Add to bag <span>↗</span></button></div>
+        </div>
       </section>
     </div>
 

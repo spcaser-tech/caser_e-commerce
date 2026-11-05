@@ -19,6 +19,9 @@ const elements = {
   profileOverlay: document.querySelector("#profile-overlay"),
   adminOverlay: document.querySelector("#admin-overlay"),
   receiptOverlay: document.querySelector("#receipt-overlay"),
+  productOverlay: document.querySelector("#product-overlay"),
+  feedbackList: document.querySelector("#feedback-list"),
+  feedbackStatus: document.querySelector("#feedback-status"),
   toast: document.querySelector("#toast-region"),
 };
 const state = {
@@ -34,6 +37,7 @@ const state = {
   orderNotificationTimer: null,
   knownOrderState: new Map(),
   lowStockSignature: "",
+  adminTab: "overview",
 };
 
 document.addEventListener("click", (event) => {
@@ -139,13 +143,27 @@ async function request(path, options = {}) {
 
 function safeImage(url, alt = "", className = "") {
   const classes = className ? ` class="${escapeHtml(className)}"` : "";
-  return `<img src="${url}" alt="${escapeHtml(alt)}"${classes} loading="lazy" onerror="this.style.display='none'">`;
+  return `<img src="${escapeHtml(url)}" alt="${escapeHtml(alt)}"${classes} loading="lazy" onerror="this.style.display='none'">`;
 }
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   })[character]);
+}
+
+function productSpecs(product) {
+  const nameParts = product.name.split("|").map((part) => part.trim());
+  if (nameParts.length > 1) return nameParts.slice(1).filter(Boolean);
+  return product.description
+    .replace(/^Specifications:\s*/i, "")
+    .split(/\s*(?:\u00c2\u00b7|\u00b7)\s*/)
+    .map((spec) => spec.trim())
+    .filter(Boolean);
+}
+
+function productTitle(product) {
+  return product.name.split("|")[0].trim();
 }
 
 function renderProducts() {
@@ -163,20 +181,91 @@ function renderProducts() {
   elements.products.hidden = matches.length === 0;
   document.querySelector("#all-count").textContent = String(state.products.length).padStart(2, "0");
   elements.products.innerHTML = matches.map((product) => `
-    <article class="product-card">
+    <article class="product-card" data-product-id="${product.id}">
       <div class="product-visual">
-        ${safeImage(product.image, product.name, "product-visual-image")}
-        ${product.badge ? `<span class="product-badge">${escapeHtml(product.badge)}</span>` : ""}
+        <button class="product-open" type="button" data-product-details="${product.id}" aria-label="View specifications for ${escapeHtml(product.name)}">
+          ${safeImage(product.image, product.name, "product-visual-image")}
+          ${product.badge ? `<span class="product-badge">${escapeHtml(product.badge)}</span>` : ""}
+        </button>
         <button class="wish-button${state.favorites.has(product.id) ? " saved" : ""}" type="button" data-favorite="${product.id}" aria-label="${state.favorites.has(product.id) ? "Remove from" : "Add to"} favorites" aria-pressed="${state.favorites.has(product.id)}">♥</button>
         <button class="quick-add" type="button" data-add="${product.id}">ADD TO BAG +</button>
       </div>
-      <div class="product-meta"><span class="product-category">${escapeHtml(product.category)}</span><span class="product-rating"><span>★</span> ${product.rating} (${product.review_count})</span></div>
-      <h3 class="product-name">${escapeHtml(product.name)}</h3>
-      <p class="product-description">${escapeHtml(product.description)}</p>
-      <div class="product-bottom"><span class="product-price">${currency.format(product.price_cents / 100)}</span><span class="price-note">IN STOCK</span></div>
+      <div class="product-meta"><span class="product-category">${escapeHtml(product.category)}</span>${product.review_count > 0 ? `<span class="product-rating"><span>★</span> ${escapeHtml(product.rating)} (${product.review_count})</span>` : ""}</div>
+      <button class="product-name product-name-button" type="button" data-product-details="${product.id}">${escapeHtml(product.name)}</button>
+      <p class="product-description">${escapeHtml(productSpecs(product).slice(0, 3).join(" · "))}</p>
+      <div class="product-bottom"><span class="product-price">${currency.format(product.price_cents / 100)}</span>${product.price_source_url ? `<a class="price-note retail-source" href="${escapeHtml(product.price_source_url)}" target="_blank" rel="noopener noreferrer" aria-label="View retailer listing; price checked ${escapeHtml(product.price_checked_at)}">SOURCE · ${escapeHtml(product.price_checked_at)}</a>` : `<span class="price-note">IN STOCK</span>`}</div>
       <button class="mobile-add" type="button" data-add="${product.id}">ADD TO BAG +</button>
     </article>
   `).join("");
+}
+
+function openProductDetails(productId) {
+  const product = state.products.find((item) => item.id === Number(productId));
+  if (!product) return;
+  document.querySelector("#product-modal-image").innerHTML = safeImage(product.image, product.name);
+  document.querySelector("#product-modal-category").textContent = product.category;
+  document.querySelector("#product-modal-title").textContent = productTitle(product);
+  document.querySelector("#product-modal-description").textContent = product.description.replace(/^Specifications:\s*/i, "");
+  const rating = document.querySelector("#product-modal-rating");
+  rating.hidden = product.review_count < 1;
+  rating.textContent = product.review_count > 0 ? `★ ${product.rating} rating · ${product.review_count} player reviews` : "";
+  document.querySelector("#product-spec-list").innerHTML = productSpecs(product)
+    .map((spec) => `<li>${escapeHtml(spec)}</li>`)
+    .join("");
+  document.querySelector("#product-modal-price").textContent = currency.format(product.price_cents / 100);
+  document.querySelector("#product-modal-add").dataset.add = product.id;
+  showOverlay(elements.productOverlay);
+}
+
+function renderFeedback(feedback) {
+  if (feedback.length === 0) {
+    elements.feedbackList.innerHTML = '<p class="feedback-empty">No feedback yet. Be the first player to share your experience.</p>';
+    return;
+  }
+  elements.feedbackList.innerHTML = feedback.map((item) => `
+    <article class="feedback-card">
+      <div class="feedback-card-rating" aria-label="${item.rating} out of 5 stars">${"★".repeat(item.rating)}${"☆".repeat(5 - item.rating)}</div>
+      <p>${escapeHtml(item.message)}</p>
+      <span>${escapeHtml(item.display_name)}</span>
+    </article>
+  `).join("");
+}
+
+async function loadFeedback() {
+  try {
+    const { feedback } = await request("/api/feedback");
+    renderFeedback(feedback);
+  } catch {
+    elements.feedbackList.innerHTML = '<p class="feedback-empty">Player feedback is unavailable right now. Please try again later.</p>';
+  }
+}
+
+async function submitFeedback(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submit = form.querySelector('button[type="submit"]');
+  const status = elements.feedbackStatus;
+  status.textContent = "";
+  status.classList.remove("feedback-error");
+  submit.disabled = true;
+  try {
+    await request("/api/feedback", {
+      method: "POST",
+      body: JSON.stringify({
+        name: document.querySelector("#feedback-name").value.trim(),
+        rating: Number(document.querySelector("#feedback-rating").value),
+        message: document.querySelector("#feedback-message").value.trim(),
+      }),
+    });
+    form.reset();
+    status.textContent = "Thanks for helping us make the shop better.";
+    await loadFeedback();
+  } catch (issue) {
+    status.textContent = issue.message;
+    status.classList.add("feedback-error");
+  } finally {
+    submit.disabled = false;
+  }
 }
 
 function getCartLines() {
@@ -242,7 +331,7 @@ function showOverlay(overlay) {
 
 function hideOverlay(overlay) {
   overlay.hidden = true;
-  if ([elements.cartOverlay, elements.authOverlay, elements.checkoutOverlay, elements.profileOverlay, elements.adminOverlay, elements.receiptOverlay].every((item) => item.hidden)) {
+  if ([elements.cartOverlay, elements.authOverlay, elements.checkoutOverlay, elements.profileOverlay, elements.adminOverlay, elements.receiptOverlay, elements.productOverlay].every((item) => item.hidden)) {
     document.body.classList.remove("no-scroll");
   }
 }
@@ -387,9 +476,47 @@ async function refreshAdminDashboard() {
     }
     state.lowStockSignature = lowStockSignature;
     document.querySelector("#admin-updated").textContent = `Live · updated ${new Date().toLocaleTimeString()}`;
+    if (state.adminTab === "feedback") await refreshAdminFeedback();
   } catch (issue) {
     document.querySelector("#admin-error").textContent = issue.message;
     document.querySelector("#admin-error").hidden = false;
+  }
+}
+
+async function refreshAdminFeedback() {
+  const { feedback, total } = await request("/api/admin/feedback");
+  document.querySelector("#admin-feedback").innerHTML = feedback.length
+    ? feedback.map((item) => `
+      <tr>
+        <td>${escapeHtml(item.display_name)}</td>
+        <td><span class="admin-feedback-rating" aria-label="${item.rating} out of 5 stars">${"★".repeat(item.rating)}${"☆".repeat(5 - item.rating)}</span></td>
+        <td class="admin-feedback-message">${escapeHtml(item.message)}</td>
+        <td>${escapeHtml(new Date(item.created_at).toLocaleString())}</td>
+      </tr>
+    `).join("")
+    : '<tr><td colspan="4">No client feedback yet.</td></tr>';
+  document.querySelector("#admin-feedback-note").textContent = total > feedback.length
+    ? `Showing the latest ${feedback.length} of ${total} submissions.`
+    : `${total} feedback submission${total === 1 ? "" : "s"}.`;
+}
+
+function selectAdminTab(tab) {
+  state.adminTab = tab;
+  document.querySelectorAll("[data-admin-tab]").forEach((button) => {
+    const selected = button.dataset.adminTab === tab;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-selected", String(selected));
+    button.tabIndex = selected ? 0 : -1;
+  });
+  document.querySelectorAll("[data-admin-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.adminPanel !== tab;
+  });
+  if (tab === "feedback") {
+    document.querySelector("#admin-error").hidden = true;
+    refreshAdminFeedback().catch((issue) => {
+      document.querySelector("#admin-error").textContent = issue.message;
+      document.querySelector("#admin-error").hidden = false;
+    });
   }
 }
 
@@ -529,9 +656,11 @@ async function submitCheckout(event) {
 }
 
 elements.products.addEventListener("click", (event) => {
+  const detailsButton = event.target.closest("[data-product-details]");
   const addButton = event.target.closest("[data-add]");
-  if (addButton) addToCart(addButton.dataset.add);
   const favoriteButton = event.target.closest("[data-favorite]");
+  if (detailsButton) openProductDetails(detailsButton.dataset.productDetails);
+  else if (addButton) addToCart(addButton.dataset.add);
   if (favoriteButton) {
     const id = Number(favoriteButton.dataset.favorite);
     if (state.favorites.has(id)) state.favorites.delete(id);
@@ -540,6 +669,11 @@ elements.products.addEventListener("click", (event) => {
     favoriteButton.classList.toggle("saved", state.favorites.has(id));
     favoriteButton.setAttribute("aria-pressed", String(state.favorites.has(id)));
     favoriteButton.setAttribute("aria-label", `${state.favorites.has(id) ? "Remove from" : "Add to"} favorites`);
+    return;
+  }
+  if (!detailsButton && !addButton) {
+    const productCard = event.target.closest(".product-card");
+    if (productCard) openProductDetails(productCard.dataset.productId);
   }
 });
 elements.search.addEventListener("input", () => {
@@ -604,6 +738,22 @@ document.querySelectorAll("[data-close-checkout]").forEach((button) => button.ad
 document.querySelectorAll("[data-close-profile]").forEach((button) => button.addEventListener("click", () => hideOverlay(elements.profileOverlay)));
 document.querySelectorAll("[data-close-admin]").forEach((button) => button.addEventListener("click", () => hideOverlay(elements.adminOverlay)));
 document.querySelector("#admin-refresh").addEventListener("click", refreshAdminDashboard);
+document.querySelectorAll("[data-admin-tab]").forEach((button) => {
+  button.addEventListener("click", () => selectAdminTab(button.dataset.adminTab));
+});
+document.querySelector('[role="tablist"]').addEventListener("keydown", (event) => {
+  const tabs = [...document.querySelectorAll("[data-admin-tab]")];
+  const activeIndex = tabs.indexOf(document.activeElement);
+  const nextIndex = event.key === "ArrowRight" ? (activeIndex + 1) % tabs.length
+    : event.key === "ArrowLeft" ? (activeIndex - 1 + tabs.length) % tabs.length
+      : event.key === "Home" ? 0
+        : event.key === "End" ? tabs.length - 1
+          : -1;
+  if (nextIndex < 0) return;
+  event.preventDefault();
+  tabs[nextIndex].focus();
+  selectAdminTab(tabs[nextIndex].dataset.adminTab);
+});
 function openAccount() {
   if (state.user) {
     openProfile();
@@ -637,13 +787,19 @@ document.querySelector("#auth-switch-button").addEventListener("click", () => {
 });
 document.querySelectorAll("[data-close-auth]").forEach((button) => button.addEventListener("click", () => hideOverlay(elements.authOverlay)));
 document.querySelectorAll("[data-close-receipt]").forEach((button) => button.addEventListener("click", () => hideOverlay(elements.receiptOverlay)));
+document.querySelectorAll("[data-close-product]").forEach((button) => button.addEventListener("click", () => hideOverlay(elements.productOverlay)));
+document.querySelector("#product-modal-add").addEventListener("click", (event) => {
+  addToCart(event.currentTarget.dataset.add);
+  hideOverlay(elements.productOverlay);
+});
+document.querySelector("#feedback-form").addEventListener("submit", submitFeedback);
 document.querySelector(".search-toggle").addEventListener("click", () => {
   document.querySelector("#shop").scrollIntoView({ behavior: "smooth" });
   elements.search.focus({ preventScroll: true });
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
-    [elements.cartOverlay, elements.authOverlay, elements.checkoutOverlay, elements.profileOverlay, elements.adminOverlay, elements.receiptOverlay].forEach((overlay) => hideOverlay(overlay));
+    [elements.cartOverlay, elements.authOverlay, elements.checkoutOverlay, elements.profileOverlay, elements.adminOverlay, elements.receiptOverlay, elements.productOverlay].forEach((overlay) => hideOverlay(overlay));
   }
   if (event.key === "/" && !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
     event.preventDefault();
@@ -655,6 +811,7 @@ document.addEventListener("keydown", (event) => {
 async function initialize() {
   updateCart();
   await restoreSession();
+  loadFeedback();
   try {
     let catalog;
     try {
