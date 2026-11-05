@@ -219,8 +219,16 @@ def initialize_database() -> None:
                 redeemed_at TEXT NOT NULL,
                 UNIQUE(user_id, coupon_code)
             );
+            CREATE TABLE IF NOT EXISTS feedback (
+                id INTEGER PRIMARY KEY,
+                display_name TEXT NOT NULL,
+                rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+                message TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
             CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
             CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
+            CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback(created_at);
             """
         )
         if DATABASE_URL:
@@ -402,6 +410,13 @@ class StoreHandler(SimpleHTTPRequestHandler):
                        WHERE stock > 0 ORDER BY id"""
                 )]
             self.send_json(200, {"products": products})
+        elif route == "/api/feedback":
+            with connect() as database:
+                feedback = [dict(row) for row in database.execute(
+                    """SELECT display_name, rating, message
+                       FROM feedback ORDER BY created_at DESC, id DESC LIMIT 12"""
+                )]
+            self.send_json(200, {"feedback": feedback})
         elif route == "/api/me":
             user = self.authenticated_user()
             if user is None:
@@ -458,6 +473,8 @@ class StoreHandler(SimpleHTTPRequestHandler):
                 })
         elif route == "/api/admin/summary":
             self.admin_summary()
+        elif route == "/api/admin/feedback":
+            self.admin_feedback()
         elif route.startswith("/api/"):
             self.send_json(404, {"error": "That API route does not exist."})
         else:
@@ -490,6 +507,8 @@ class StoreHandler(SimpleHTTPRequestHandler):
                 self.create_order()
             elif route == "/api/profile":
                 self.update_profile()
+            elif route == "/api/feedback":
+                self.submit_feedback()
             else:
                 self.send_json(404, {"error": "That API route does not exist."})
         except ValueError as issue:
@@ -498,6 +517,37 @@ class StoreHandler(SimpleHTTPRequestHandler):
             self.send_json(409, {"error": "That email address is already registered. Try logging in instead."})
         except DATABASE_ERROR:
             self.send_json(500, {"error": "The database could not complete that request. Please try again."})
+
+    def submit_feedback(self) -> None:
+        payload = self.read_json()
+        name = payload.get("name")
+        rating = payload.get("rating")
+        message = payload.get("message")
+        if not isinstance(name, str) or not 2 <= len(name.strip()) <= 60:
+            raise ValueError("Add your name (2–60 characters).")
+        if isinstance(rating, bool) or not isinstance(rating, int) or not 1 <= rating <= 5:
+            raise ValueError("Choose a rating from 1 to 5 stars.")
+        if not isinstance(message, str) or not 5 <= len(message.strip()) <= 500:
+            raise ValueError("Feedback must be between 5 and 500 characters.")
+        display_name = name.strip()
+        feedback_message = message.strip()
+        created_at = now_utc().isoformat()
+        with connect() as database:
+            cursor = database.execute(
+                """INSERT INTO feedback (display_name, rating, message, created_at)
+                   VALUES (?, ?, ?, ?) RETURNING id""",
+                (display_name, rating, feedback_message, created_at),
+            )
+            feedback_id = cursor.fetchone()["id"]
+        self.send_json(201, {
+            "feedback": {
+                "id": feedback_id,
+                "display_name": display_name,
+                "rating": rating,
+                "message": feedback_message,
+                "created_at": created_at,
+            },
+        })
 
     def register(self) -> None:
         payload = self.read_json()
@@ -610,6 +660,21 @@ class StoreHandler(SimpleHTTPRequestHandler):
                 )
             ]
         self.send_json(200, {"summary": summary, "orders": orders, "customers": customers, "low_stock": low_stock})
+
+    def admin_feedback(self) -> None:
+        admin = self.authenticated_admin()
+        if admin is None:
+            self.send_json(403, {"error": "Administrator access is required."})
+            return
+        with connect() as database:
+            total = database.execute("SELECT COUNT(*) FROM feedback").fetchone()[0]
+            feedback = [
+                dict(row) for row in database.execute(
+                    """SELECT display_name, rating, message, created_at
+                       FROM feedback ORDER BY created_at DESC, id DESC LIMIT 100"""
+                )
+            ]
+        self.send_json(200, {"feedback": feedback, "total": total})
 
     def create_order(self) -> None:
         user = self.authenticated_user()
